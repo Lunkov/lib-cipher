@@ -48,6 +48,7 @@ func (c *ACipherRSA) GenerateKeyPair() bool {
 }
 
 func (c *ACipherRSA) GetID() []byte {
+  // TODO https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md
   pubASN1, err := x509.MarshalPKIXPublicKey(c.pkey.Public())
 	if err != nil {
 		glog.Errorf("ERR: MarshalPKIXPublicKey: %v", err)

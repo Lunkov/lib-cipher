@@ -8,12 +8,13 @@ import (
 )
 
 type CFile struct {
-  Data  []byte
-  Hash  []byte
+  Version    string 
+  Data       []byte
+  Hash       []byte
 }
 
 func NewCFile() *CFile {
-  return &CFile{}
+  return &CFile{Version: "1"}
 }
 
 func (f *CFile) SaveFilePwd(filename string, password string, data []byte) (bool) {
@@ -23,7 +24,7 @@ func (f *CFile) SaveFilePwd(filename string, password string, data []byte) (bool
 
 func (f *CFile) SaveFile(filename string, key []byte, data []byte) (bool) {
   c := NewSCipher()
-  f.Hash = c.SHA512(data)
+  f.Hash = c.SHA512([]byte(f.Version + string(c.SHA512(data))))
   f.Data, _ = c.AESEncrypt(key, data)
 
   var buff bytes.Buffer
@@ -62,7 +63,7 @@ func (f *CFile) LoadFile(filename string, key []byte) ([]byte, bool) {
     glog.Errorf("ERR: c.Decrypt('%s'): %v", filename, err)
     return nil, false
   }
-  hash := c.SHA512(enc)
+  hash := c.SHA512([]byte(f.Version + string(c.SHA512(enc))))
   if bytes.Compare(hash, f.Hash) != 0 {
     glog.Errorf("ERR: c.Hash('%s'): %v", filename, err)
     return nil, false
