@@ -141,16 +141,14 @@ func (c *ACipherRSA) BytesToPrivateKey(priv []byte, password string) bool {
 }
 
 func (c *ACipherRSA) Sign(message []byte) ([]byte, bool) {
-  rng := rand.Reader
-
-  // Only small messages can be signed directly; thus the hash of a
-  // message, rather than the message itself, is signed. This requires
-  // that the hash function be collision resistant. SHA-256 is the
-  // least-strong hash function that should be used for this at the time
-  // of writing (2016).
+  if c.pkey == nil {
+    glog.Errorf("ERR: CRYPT: Signing: private key is not a signer")
+    return nil, false
+  }
+  
   hashed := sha512.Sum512(message)
 
-  signature, err := rsa.SignPKCS1v15(rng, c.pkey, crypto.SHA512, hashed[:])
+  signature, err := rsa.SignPKCS1v15(rand.Reader, c.pkey, crypto.SHA512, hashed[:])
   if err != nil {
     glog.Errorf("ERR: CRYPT: Signing: %s", err)
     return signature, false
@@ -175,21 +173,50 @@ func (c *ACipherRSA) Verify(message []byte, signature []byte) (bool) {
 // EncryptWithPublicKey encrypts data with public key
 func (c *ACipherRSA) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
   hash := sha512.New()
-  ciphertext, err := rsa.EncryptOAEP(hash, rand.Reader,&c.pkey.PublicKey, msg, nil)
-  if err != nil {
-    glog.Errorf("ERR: CRYPT: EncryptWithPublicKey (cipher=%s): %v", c.GetType(), err)
-    return ciphertext, false
+  msgLen := len(msg)
+  step := c.pkey.PublicKey.Size() - 2*hash.Size() - 2
+  var encryptedBytes []byte
+
+  for start := 0; start < msgLen; start += step {
+    finish := start + step
+    if finish > msgLen {
+      finish = msgLen
+    }
+
+    encryptedBlockBytes, err := rsa.EncryptOAEP(hash, rand.Reader, &c.pkey.PublicKey, msg[start:finish], nil)
+    if err != nil {
+      glog.Errorf("ERR: CRYPT: EncryptWithPublicKey (cipher=%s): %v", c.GetType(), err)
+      return nil, false
+    }
+
+    encryptedBytes = append(encryptedBytes, encryptedBlockBytes...)
   }
-  return ciphertext, true
+
+  return encryptedBytes, true
 }
 
 // DecryptWithPrivateKey decrypts data with private key
-func (c *ACipherRSA) DecryptWithPrivateKey(ciphertext []byte) ([]byte, bool) {
+func (c *ACipherRSA) DecryptWithPrivateKey(msg []byte) ([]byte, bool) {
   hash := sha512.New()
-  plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, c.pkey, ciphertext, nil)
-  if err != nil {
-    glog.Errorf("ERR: CRYPT: DecryptWithPrivateKey (cipher=%s): %v", c.GetType(), err)
-    return plaintext, false
+
+  msgLen := len(msg)
+  step := c.pkey.PublicKey.Size()
+  var decryptedBytes []byte
+
+  for start := 0; start < msgLen; start += step {
+    finish := start + step
+    if finish > msgLen {
+      finish = msgLen
+    }
+
+    decryptedBlockBytes, err := rsa.DecryptOAEP(hash, rand.Reader, c.pkey, msg[start:finish], nil)
+    if err != nil {
+      glog.Errorf("ERR: CRYPT: DecryptWithPrivateKey (cipher=%s): %v", c.GetType(), err)
+      return nil, false
+    }
+
+    decryptedBytes = append(decryptedBytes, decryptedBlockBytes...)
   }
-  return plaintext, true
-} 
+
+  return decryptedBytes, true
+}

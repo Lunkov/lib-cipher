@@ -2,21 +2,24 @@ package cipher
 
 import (
   "testing"
-  //"github.com/stretchr/testify/assert"
+  "github.com/stretchr/testify/assert"
 )
 
-func TestCrypt(t *testing.T) {
-  /*rk := NewACipher()
-  rk.GenerateKeyPairAndSave("123", "test.key")
+func TestAsyncCrypt(t *testing.T) {
+  rk := NewACipher("RSA4096")
+  rk.GenerateKeyPair()
+  rk.SavePublicKey("./test/test.key.pub")
+  rk.SavePrivateKey("123", "./test/test.key.sec")
   
-  rkpriv := NewACipher()
-  privok := rkpriv.LoadPrivateKey("1233", "test.key") 
+  rkpriv := NewACipher("RSA4096")
+  privok := rkpriv.LoadPrivateKey("1233", "./test/test.key.sec") 
   assert.False(t, privok)
-  privok = rkpriv.LoadPrivateKey("123", "test.key") 
+  privok = rkpriv.LoadPrivateKey("123", "./test/test.key.sec") 
   assert.True(t, privok)
 
-  rkpub := NewACipher()
-  pubok := rkpub.LoadPublicKey("test.key.pub") 
+
+  rkpub := NewACipher("RSA4096")
+  pubok := rkpub.LoadPublicKey("./test/test.key.pub") 
   assert.True(t,pubok)
   
   msg := ([]byte)("This Message for Sign")
@@ -32,12 +35,14 @@ func TestCrypt(t *testing.T) {
   dec, decok := rkpriv.DecryptWithPrivateKey(enc)
   assert.True(t, decok)
   assert.Equal(t, msg, dec)
+}
+
+func TestSyncCrypt(t *testing.T) {
+  msg := ([]byte)("This Message for Encrypt")
   
-  rks := NewACipher()
-  key, okk := rks.SHA256(([]byte)("Big password"))
-  assert.True(t, okk)
-  keyw, okkw := rks.SHA256(([]byte)("Wrong password"))
-  assert.True(t, okkw)
+  rks := NewSCipher()
+  key := rks.SHA256(([]byte)("Big password"))
+  keyw := rks.SHA256(([]byte)("Wrong password"))
   
   encs, encsok := rks.AESEncrypt(key, msg)
   assert.True(t, encsok)
@@ -52,6 +57,6 @@ func TestCrypt(t *testing.T) {
   
   decs, decsok := rks.AESDecrypt(key, encs)
   assert.True(t, decsok)
-  assert.Equal(t, msg, decs)  */
+  assert.Equal(t, msg, decs)
 }
 
