@@ -169,12 +169,20 @@ func (c *ACipherRSA) Verify(message []byte, signature []byte) (bool) {
   return true
 }
 
-
 // EncryptWithPublicKey encrypts data with public key
 func (c *ACipherRSA) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
+  return RSAEncryptWithPublicKey(&c.pkey.PublicKey, msg)
+}
+
+func (c *ACipherRSA) DecryptWithPrivateKey(msg []byte) ([]byte, bool) {
+  return RSADecryptWithPrivateKey(c.pkey, msg)
+}
+
+// EncryptWithPublicKey encrypts data with public key
+func RSAEncryptWithPublicKey(pk *rsa.PublicKey, msg []byte) ([]byte, bool) {
   hash := sha512.New()
   msgLen := len(msg)
-  step := c.pkey.PublicKey.Size() - 2*hash.Size() - 2
+  step := pk.Size() - 2*hash.Size() - 2
   var encryptedBytes []byte
 
   for start := 0; start < msgLen; start += step {
@@ -183,9 +191,9 @@ func (c *ACipherRSA) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
       finish = msgLen
     }
 
-    encryptedBlockBytes, err := rsa.EncryptOAEP(hash, rand.Reader, &c.pkey.PublicKey, msg[start:finish], nil)
+    encryptedBlockBytes, err := rsa.EncryptOAEP(hash, rand.Reader, pk, msg[start:finish], nil)
     if err != nil {
-      glog.Errorf("ERR: CRYPT: EncryptWithPublicKey (cipher=%s): %v", c.GetType(), err)
+      glog.Errorf("ERR: CRYPT: RSAEncryptWithPublicKey: %v", err)
       return nil, false
     }
 
@@ -196,11 +204,11 @@ func (c *ACipherRSA) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
 }
 
 // DecryptWithPrivateKey decrypts data with private key
-func (c *ACipherRSA) DecryptWithPrivateKey(msg []byte) ([]byte, bool) {
+func RSADecryptWithPrivateKey(privkey *rsa.PrivateKey, msg []byte) ([]byte, bool) {
   hash := sha512.New()
 
   msgLen := len(msg)
-  step := c.pkey.PublicKey.Size()
+  step := privkey.PublicKey.Size()
   var decryptedBytes []byte
 
   for start := 0; start < msgLen; start += step {
@@ -209,9 +217,9 @@ func (c *ACipherRSA) DecryptWithPrivateKey(msg []byte) ([]byte, bool) {
       finish = msgLen
     }
 
-    decryptedBlockBytes, err := rsa.DecryptOAEP(hash, rand.Reader, c.pkey, msg[start:finish], nil)
+    decryptedBlockBytes, err := rsa.DecryptOAEP(hash, rand.Reader, privkey, msg[start:finish], nil)
     if err != nil {
-      glog.Errorf("ERR: CRYPT: DecryptWithPrivateKey (cipher=%s): %v", c.GetType(), err)
+      glog.Errorf("ERR: CRYPT: RSADecryptWithPrivateKey: %v", err)
       return nil, false
     }
 
