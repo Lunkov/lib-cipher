@@ -158,6 +158,11 @@ func (c *ACipherRSA) Sign(message []byte) ([]byte, bool) {
 }
 
 func (c *ACipherRSA) Verify(message []byte, signature []byte) (bool) {
+  if c.pkey == nil {
+    glog.Errorf("ERR: CRYPT: Verify: public key is not a verify")
+    return false
+  }
+
   hashed := sha512.Sum512(message)
 
   err := rsa.VerifyPKCS1v15(&c.pkey.PublicKey, crypto.SHA512, hashed[:], signature)
@@ -171,15 +176,27 @@ func (c *ACipherRSA) Verify(message []byte, signature []byte) (bool) {
 
 // EncryptWithPublicKey encrypts data with public key
 func (c *ACipherRSA) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
+  if c.pkey == nil {
+    glog.Errorf("ERR: CRYPT: EncryptWithPublicKey: public key is not exists")
+    return nil, false
+  }
   return RSAEncryptWithPublicKey(&c.pkey.PublicKey, msg)
 }
 
 func (c *ACipherRSA) DecryptWithPrivateKey(msg []byte) ([]byte, bool) {
+  if c.pkey == nil {
+    glog.Errorf("ERR: CRYPT: RSADecryptWithPrivateKey: private key is not exists")
+    return nil, false
+  }
   return RSADecryptWithPrivateKey(c.pkey, msg)
 }
 
 // EncryptWithPublicKey encrypts data with public key
 func RSAEncryptWithPublicKey(pk *rsa.PublicKey, msg []byte) ([]byte, bool) {
+  if pk == nil {
+    glog.Errorf("ERR: CRYPT: RSAEncryptWithPublicKey: public key is not exists")
+    return nil, false
+  }
   hash := sha512.New()
   msgLen := len(msg)
   step := pk.Size() - 2*hash.Size() - 2
@@ -205,6 +222,10 @@ func RSAEncryptWithPublicKey(pk *rsa.PublicKey, msg []byte) ([]byte, bool) {
 
 // DecryptWithPrivateKey decrypts data with private key
 func RSADecryptWithPrivateKey(privkey *rsa.PrivateKey, msg []byte) ([]byte, bool) {
+  if privkey == nil {
+    glog.Errorf("ERR: CRYPT: RSADecryptWithPrivateKey: public key is not exists")
+    return nil, false
+  }
   hash := sha512.New()
 
   msgLen := len(msg)

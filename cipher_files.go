@@ -65,7 +65,7 @@ func (f *CFile) LoadFile(filename string, key []byte) ([]byte, bool) {
   }
   hash := c.SHA512([]byte(f.Version + string(c.SHA512(enc))))
   if bytes.Compare(hash, f.Hash) != 0 {
-    glog.Errorf("ERR: c.Hash('%s'): %v", filename, err)
+    glog.Errorf("ERR: c.Hash('%s'): %s =!= %s ", filename, string(hash), string(f.Hash))
     return nil, false
   }
   return enc, true
