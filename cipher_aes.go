@@ -11,6 +11,21 @@ import (
   "golang.org/x/crypto/scrypt"
 )
 
+
+/*
+ * SHA-256   32 bytes
+ * SHA-512   64 bytes
+ * 
+ * AES       block size 16 bytes
+ * AES 256   key size 64 bytes
+ * AES 256   14 rounds for 256-bit keys
+ * 
+ * AES 128   key size ?? bytes
+ * AES 128   10 rounds for 128-bit keys
+ */
+
+// https://github.com/lafriks/go-shamir
+
 type SCipher struct {
   //Type    string
 }
