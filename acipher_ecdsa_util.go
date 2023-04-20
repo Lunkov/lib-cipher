@@ -3,6 +3,7 @@ package cipher
 import (
   "bytes"
   "encoding/gob"
+  "strconv"
   "math/big"
 
   "crypto/rand"
@@ -10,12 +11,14 @@ import (
 	"crypto/elliptic"
   "crypto/sha512"
   
+  "github.com/ethereum/go-ethereum/crypto/secp256k1"
+  
   "github.com/golang/glog"
 )
 
 type ECDSAPublicKeyBuf struct {
   Type string
-  X, Y []byte
+  X, Y, Data []byte
 }
 
 func ECDSAGetParams(t string) (elliptic.Curve, bool) {
@@ -26,6 +29,9 @@ func ECDSAGetParams(t string) (elliptic.Curve, bool) {
       break
     case "P-256":
       params = elliptic.P256()
+      break
+    case "WP-256":
+      params = secp256k1.S256()
       break
     case "P-384":
       params = elliptic.P384()
@@ -41,11 +47,18 @@ func ECDSAGetParams(t string) (elliptic.Curve, bool) {
 }
 
 func ECDSAPublicKeySerialize(public *ecdsa.PublicKey) ([]byte, bool) {
-  ecdsabuf := ECDSAPublicKeyBuf{Type: public.Params().Name, X: public.X.Bytes(), Y: public.Y.Bytes()}
+  t := public.Params().Name
+  if t == "" {
+    t = "WP-" + strconv.Itoa(public.Params().BitSize)
+  }
+  _, ok := ECDSAGetParams(t)
+  if !ok {
+    return nil, false
+  }
+  ecdsabuf := ECDSAPublicKeyBuf{Type: t, X: public.X.Bytes(), Y: public.Y.Bytes()}
   var buff bytes.Buffer
   encoder := gob.NewEncoder(&buff)
   encoder.Encode(ecdsabuf)
-  glog.Errorf("ERR: QQQQ: '%v'", public.Params())
   return buff.Bytes(), true
 }
 
@@ -63,8 +76,8 @@ func ECDSAPublicKeyDeserialize(msg []byte) (*ecdsa.PublicKey, bool) {
     return nil, false
   }
   x := big.Int{}
-  y := big.Int{}
   x.SetBytes(ecdsabuf.X)
+  y := big.Int{}
   y.SetBytes(ecdsabuf.Y)
   return &ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}, true
 }
