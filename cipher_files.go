@@ -2,7 +2,7 @@ package cipher
 
 import (
   "bytes"
-  "io/ioutil"
+  "os"
   "encoding/gob"
   "github.com/golang/glog"
 )
@@ -31,7 +31,7 @@ func (f *CFile) SaveFile(filename string, key []byte, data []byte) (bool) {
   encoder := gob.NewEncoder(&buff)
   encoder.Encode(f)
 
-  err := ioutil.WriteFile(filename, buff.Bytes(), 0640) // just pass the file name
+  err := os.WriteFile(filename, buff.Bytes(), 0640) // just pass the file name
   if err != nil {
     glog.Errorf("ERR: SaveKey Write(%s): %v", filename, err)
     return false
@@ -45,7 +45,7 @@ func (f *CFile) LoadFilePwd(filename string, password string) ([]byte, bool) {
 }
 
 func (f *CFile) LoadFile(filename string, key []byte) ([]byte, bool) {
-  data, err := ioutil.ReadFile(filename) 
+  data, err := os.ReadFile(filename) 
   if err != nil {
     glog.Errorf("ERR: LoadFile (%s) err='%v'", filename, err)
     return nil, false
