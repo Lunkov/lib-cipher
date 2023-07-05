@@ -70,3 +70,43 @@ func (f *CFile) LoadFile(filename string, key []byte) ([]byte, bool) {
   }
   return enc, true
 }
+
+func (f *CFile) EncryptBufPwd(data []byte, password string) ([]byte, bool) {
+  c := NewSCipher()
+  return f.EncryptBuf(data, c.Password2Key(password))
+}
+
+func (f *CFile) EncryptBuf(data []byte, key []byte) ([]byte, bool) {
+  c := NewSCipher()
+  f.Hash = c.SHA512([]byte(f.Version + string(c.SHA512(data))))
+  f.Data, _ = c.AESEncrypt(key, data)
+
+  var buff bytes.Buffer
+  encoder := gob.NewEncoder(&buff)
+  encoder.Encode(f)
+  return buff.Bytes(), true
+}
+
+func (f *CFile) DecryptBufPwd(data []byte, password string) ([]byte, bool) {
+  c := NewSCipher()
+  return f.DecryptBuf(data, c.Password2Key(password))
+}
+
+func (f *CFile) DecryptBuf(data []byte, key []byte) ([]byte, bool) {
+  buf := bytes.NewBuffer(data)
+  decoder := gob.NewDecoder(buf)
+  err := decoder.Decode(f)
+  if err != nil {
+    return nil, false
+  }
+  c := NewSCipher()
+  enc, ok := c.AESDecrypt(key, f.Data)
+  if !ok {
+    return nil, false
+  }
+  hash := c.SHA512([]byte(f.Version + string(c.SHA512(enc))))
+  if bytes.Compare(hash, f.Hash) != 0 {
+    return nil, false
+  }
+  return enc, true
+}
