@@ -29,3 +29,18 @@ func TestCryptFileBuf(t *testing.T) {
 
   assert.Equal(t, "1234567890", string(bufd))
 }
+
+func TestCryptFileBuffer(t *testing.T) {
+  fl := NewCFile()
+  bufe := fl.EncryptBufferPwd("0987654321", []byte("1234567890"))
+  
+  bufd, okd := fl.DecryptBufferPwd("1234567890", &bufe)
+  
+  assert.False(t, okd)
+
+  bufe = fl.EncryptBufferPwd("0987654321", []byte("1234567890"))
+
+  bufd, okd = fl.DecryptBufferPwd("0987654321", &bufe)
+  assert.True(t, okd)
+  assert.Equal(t, "1234567890", string(bufd))
+}

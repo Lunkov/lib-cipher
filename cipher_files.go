@@ -39,6 +39,36 @@ func (f *CFile) SaveFile(filename string, key []byte, data []byte) (bool) {
   return true
 }
 
+func (f *CFile) EncryptBufferPwd(password string, data []byte) bytes.Buffer {
+  c := NewSCipher()
+  f.Hash = c.SHA512([]byte(f.Version + string(c.SHA512(data))))
+  f.Data, _ = c.AESEncrypt(c.Password2Key(password), data)
+
+  var buff bytes.Buffer
+  encoder := gob.NewEncoder(&buff)
+  encoder.Encode(f)
+
+  return buff
+}
+
+func (f *CFile) DecryptBufferPwd(password string, data *bytes.Buffer) ([]byte, bool) {
+  decoder := gob.NewDecoder(data)
+  err := decoder.Decode(f)
+  if err != nil {
+    return nil, false
+  }
+  c := NewSCipher()
+  enc, ok := c.AESDecrypt(c.Password2Key(password), f.Data)
+  if !ok {
+    return nil, false
+  }
+  hash := c.SHA512([]byte(f.Version + string(c.SHA512(enc))))
+  if bytes.Compare(hash, f.Hash) != 0 {
+    return nil, false
+  }
+  return enc, true
+}
+
 func (f *CFile) LoadFilePwd(filename string, password string) ([]byte, bool) {
   c := NewSCipher()
   return f.LoadFile(filename, c.Password2Key(password))
