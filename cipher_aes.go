@@ -37,7 +37,6 @@ func (c *SCipher) AESCreateKey() ([]byte, bool) {
   key := make([]byte, 64)
   _, err := rand.Read(key)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: Gen Key (cipher=%s): %v", "AES", err)
     return nil, false
   }
   return key, true
@@ -47,7 +46,6 @@ func (c *SCipher) AESCreateKey() ([]byte, bool) {
 func (c *SCipher) AESEncrypt(key []byte, plaintext []byte) ([]byte, bool) {
   block, err := aes.NewCipher(key)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: AESEncrypt (cipher=%s): %v", "AES", err)
     return plaintext, false
   }
 
@@ -56,7 +54,6 @@ func (c *SCipher) AESEncrypt(key []byte, plaintext []byte) ([]byte, bool) {
   ciphertext := make([]byte, aes.BlockSize+len(plaintext))
   iv := ciphertext[:aes.BlockSize]
   if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-    glog.Errorf("ERR: CRYPT: AESEncrypt (ReadFull): %v", err)
     return plaintext, false
   }
 
@@ -70,14 +67,12 @@ func (c *SCipher) AESEncrypt(key []byte, plaintext []byte) ([]byte, bool) {
 func (c *SCipher) AESDecrypt(key []byte, ciphertext []byte) ([]byte, bool) {
   block, err := aes.NewCipher(key)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: AESDecrypt (NewCipher): %v", err)
     return ciphertext, false
   }
 
   // The IV needs to be unique, but not secure. Therefore it's common to
   // include it at the beginning of the ciphertext.
   if len(ciphertext) < aes.BlockSize {
-    glog.Errorf("ERR: CRYPT: AESDecrypt (BlockSize): %v", err)
     return ciphertext, false
   }
   iv := ciphertext[:aes.BlockSize]
