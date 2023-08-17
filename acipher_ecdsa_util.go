@@ -7,13 +7,11 @@ import (
   "math/big"
 
   "crypto/rand"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+  "crypto/ecdsa"
+  "crypto/elliptic"
   "crypto/sha512"
   
   "github.com/ethereum/go-ethereum/crypto/secp256k1"
-  
-  "github.com/golang/glog"
 )
 
 type ECDSAPublicKeyBuf struct {
@@ -40,7 +38,6 @@ func ECDSAGetParams(t string) (elliptic.Curve, bool) {
       params = elliptic.P521()
       break
     default:
-      glog.Errorf("ERR: Unrecognized cipher algorithm: '%s'", t)
       return nil, false
   }
   return params, true
@@ -68,7 +65,6 @@ func ECDSAPublicKeyDeserialize(msg []byte) (*ecdsa.PublicKey, bool) {
   decoder := gob.NewDecoder(buf)
   err := decoder.Decode(&ecdsabuf)
   if err != nil {
-    glog.Errorf("ERR: decoder.Decode %v", err)
     return nil, false
   }
   curve, ok := ECDSAGetParams(ecdsabuf.Type)

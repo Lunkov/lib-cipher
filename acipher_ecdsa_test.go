@@ -6,7 +6,7 @@ import (
   
   "crypto/sha512"
   "crypto/ecdsa"
-	
+
   "github.com/Lunkov/go-hdwallet"
 )
 
