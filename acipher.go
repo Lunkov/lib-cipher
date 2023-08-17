@@ -2,8 +2,6 @@ package cipher
 
 import (
   "os"
-  
-  "github.com/golang/glog"
 )
 
 
@@ -15,7 +13,7 @@ type IACipher interface {
   
   GenerateKeyPair() bool
   
-  PublicKeyToBytes() []byte
+  PublicKeyToBytes() ([]byte, bool)
   BytesToPublicKey(pub []byte) bool
   LoadPublicKey(filename string) bool
   SavePublicKey(filename string) bool
@@ -37,7 +35,7 @@ type IACipher interface {
 
 type ACipher struct {  
   privateKeyToBytes func(password string) []byte
-  publicKeyToBytes func() []byte
+  publicKeyToBytes func() ([]byte, bool)
   
   bytesToPrivateKey func(data []byte, password string) bool
   bytesToPublicKey  func(data []byte) bool
@@ -58,7 +56,6 @@ func NewACipher(t string) IACipher {
       c := NewACipherED25519(t)
       return c
     default:
-      glog.Errorf("ERR: Unrecognized cipher algorithm: %s", t)
       return nil
   }
   return nil
@@ -67,7 +64,6 @@ func NewACipher(t string) IACipher {
 func (c *ACipher) LoadPublicKey(filename string) bool {
   data, err := os.ReadFile(filename + ".pub")
   if err != nil {
-    glog.Errorf("ERR: CRYPT: Load Public Key (file=%s): %v", filename, err)
     return false
   }
   return c.bytesToPublicKey(data)
@@ -75,15 +71,18 @@ func (c *ACipher) LoadPublicKey(filename string) bool {
 
 func (c *ACipher) SavePublicKey(filename string) bool {
   pubfile := filename + ".pub"
-  err := os.WriteFile(pubfile, c.publicKeyToBytes(), 0644)
+  buf, ok := c.publicKeyToBytes()
+  if !ok {
+    return false
+  }
+  err := os.WriteFile(pubfile, buf, 0644)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: Write file (file=%s): %v", pubfile, err)
     return false
   }
   return true
 }
 
-func (c *ACipher) PublicKeyToBytes() []byte { return nil }
+func (c *ACipher) PublicKeyToBytes() ([]byte, bool) { return nil, false }
 func (c *ACipher) BytesToPublicKey(pub []byte) bool { return false }
 
 func (c *ACipher) PrivateKeyToBytes(password string) []byte { return nil }
@@ -92,7 +91,6 @@ func (c *ACipher) BytesToPrivateKey(priv []byte, password string) bool { return 
 func (c *ACipher) LoadPrivateKey(password string, filename string) bool {
   data, err := os.ReadFile(filename + ".sec")
   if err != nil {
-    glog.Errorf("ERR: CRYPT: Load Private Key (file=%s): %v", filename, err)
     return false
   }
   return c.bytesToPrivateKey(data, password)
@@ -102,7 +100,6 @@ func (c *ACipher) SavePrivateKey(password string, filename string) bool {
   pubfile := filename + ".sec"
   err := os.WriteFile(pubfile, c.privateKeyToBytes(password), 0644)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: Write file (file=%s): %v", pubfile, err)
     return false
   }
   return true

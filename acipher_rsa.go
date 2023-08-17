@@ -8,8 +8,6 @@ import (
   "crypto/sha512"
   "crypto/x509"
   "encoding/pem"
-  
-  "github.com/golang/glog"
 )
 
 type ACipherRSA struct {
@@ -40,11 +38,9 @@ func (c *ACipherRSA) GenerateKeyPair() bool {
       priv, err = rsa.GenerateKey(rand.Reader, 4096)
       break
     default:
-      glog.Errorf("ERR: Unrecognized cipher algorithm: %s", c.GetType())
       return false
     }
   if err != nil {
-    glog.Errorf("ERR: GenerateKeyPair: %s: %v", c.GetType(), err)
     return false
   }
   c.pkey = priv.(*rsa.PrivateKey)
@@ -55,18 +51,17 @@ func (c *ACipherRSA) GetID() []byte {
   // TODO https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md
   pubASN1, err := x509.MarshalPKIXPublicKey(c.pkey.Public())
 	if err != nil {
-		glog.Errorf("ERR: MarshalPKIXPublicKey: %v", err)
-    return nil
+		return nil
 	}
   sha_512 := sha512.New()
   sha_512.Write(pubASN1)
   return sha_512.Sum(nil)
 }
 
-func (c *ACipherRSA) PublicKeyToBytes() []byte {
+func (c *ACipherRSA) PublicKeyToBytes() ([]byte, bool) {
   pubASN1, err := x509.MarshalPKIXPublicKey(c.pkey.Public())
   if err != nil {
-    glog.Errorf("ERR: CRYPT: MarshalPKIXPublicKey (cipher=%s): %v", c.GetType(), err)
+    return nil, false
   }
 
   pubBytes := pem.EncodeToMemory(&pem.Block{
@@ -74,7 +69,7 @@ func (c *ACipherRSA) PublicKeyToBytes() []byte {
     Bytes: pubASN1,
   })
 
-  return pubBytes
+  return pubBytes, true
 }
 
 // BytesToPublicKey bytes to public key
@@ -86,18 +81,15 @@ func (c *ACipherRSA) BytesToPublicKey(pub []byte) bool {
   if enc {
     b, err = x509.DecryptPEMBlock(block, nil)
     if err != nil {
-      glog.Errorf("ERR: CRYPT: DecryptPEMBlock (cipher=%s): %v", c.GetType(), err)
       return false
     }
   }
   ifc, err := x509.ParsePKIXPublicKey(b)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: ParsePKIXPublicKey (cipher=%s): %v", c.GetType(), err)
     return false
   }
   key, ok := ifc.(*rsa.PublicKey)
   if !ok {
-    glog.Errorf("ERR: CRYPT: ParsePKIXPublicKey (cipher=%s): %v", c.GetType(), err)
     return false
   }
   c.pkey = &rsa.PrivateKey{}
@@ -131,13 +123,11 @@ func (c *ACipherRSA) BytesToPrivateKey(priv []byte, password string) bool {
   if enc {
     b, err = x509.DecryptPEMBlock(block, []byte(password))
     if err != nil {
-      glog.Errorf("ERR: CRYPT: Encrypt (cipher=%s): %v", c.GetType(), err)
       return false
     }
   }
   key, err := x509.ParsePKCS1PrivateKey(b)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: ParsePKCS1PrivateKey (cipher=%s): %v", c.GetType(), err)
     return false
   }
   c.pkey = key
@@ -146,7 +136,6 @@ func (c *ACipherRSA) BytesToPrivateKey(priv []byte, password string) bool {
 
 func (c *ACipherRSA) Sign(message []byte) ([]byte, bool) {
   if c.pkey == nil {
-    glog.Errorf("ERR: CRYPT: Signing: private key is not a signer")
     return nil, false
   }
   
@@ -154,7 +143,6 @@ func (c *ACipherRSA) Sign(message []byte) ([]byte, bool) {
 
   signature, err := rsa.SignPKCS1v15(rand.Reader, c.pkey, crypto.SHA512, hashed[:])
   if err != nil {
-    glog.Errorf("ERR: CRYPT: Signing: %s", err)
     return signature, false
   }
 
@@ -163,7 +151,6 @@ func (c *ACipherRSA) Sign(message []byte) ([]byte, bool) {
 
 func (c *ACipherRSA) Verify(message []byte, signature []byte) (bool) {
   if c.pkey == nil {
-    glog.Errorf("ERR: CRYPT: Verify: public key is not a verify")
     return false
   }
 
@@ -171,7 +158,6 @@ func (c *ACipherRSA) Verify(message []byte, signature []byte) (bool) {
 
   err := rsa.VerifyPKCS1v15(&c.pkey.PublicKey, crypto.SHA512, hashed[:], signature)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: Verification: %s", err)
     return false
   }
 
@@ -181,7 +167,6 @@ func (c *ACipherRSA) Verify(message []byte, signature []byte) (bool) {
 // EncryptWithPublicKey encrypts data with public key
 func (c *ACipherRSA) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
   if c.pkey == nil {
-    glog.Errorf("ERR: CRYPT: EncryptWithPublicKey: public key is not exists")
     return nil, false
   }
   return RSAEncryptWithPublicKey(&c.pkey.PublicKey, msg)
@@ -189,7 +174,6 @@ func (c *ACipherRSA) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
 
 func (c *ACipherRSA) DecryptWithPrivateKey(msg []byte) ([]byte, bool) {
   if c.pkey == nil {
-    glog.Errorf("ERR: CRYPT: RSADecryptWithPrivateKey: private key is not exists")
     return nil, false
   }
   return RSADecryptWithPrivateKey(c.pkey, msg)

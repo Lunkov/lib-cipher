@@ -6,8 +6,6 @@ import (
   "crypto/sha512"
   "crypto/x509"
   "encoding/pem"
-  
-  "github.com/golang/glog"
 )
 
 type ACipherED25519 struct {
@@ -40,7 +38,6 @@ func (c *ACipherED25519) GetID() []byte {
 func (c *ACipherED25519) GenerateKeyPair() bool {
   pub, priv, err := ed25519.GenerateKey(rand.Reader)
   if err != nil {
-    glog.Errorf("ERR: GenerateKeyPair: %s: %v", c.GetType(), err)
     return false
   }
   c.pub = pub
@@ -58,18 +55,15 @@ func (c *ACipherED25519) BytesToPublicKey(pub []byte) bool {
   if enc {
     b, err = x509.DecryptPEMBlock(block, nil)
     if err != nil {
-      glog.Errorf("ERR: CRYPT: DecryptPEMBlock (cipher=%s): %v", c.GetType(), err)
       return false
     }
   }
   ifc, err := x509.ParsePKIXPublicKey(b)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: ParsePKIXPublicKey (cipher=%s): %v", c.GetType(), err)
     return false
   }
   key, ok := ifc.(*ed25519.PublicKey)
   if !ok {
-    glog.Errorf("ERR: CRYPT: ParsePKIXPublicKey (cipher=%s): %v", c.GetType(), err)
     return false
   }
   //c.pkey = &ed25519.PrivateKey{}
@@ -77,10 +71,10 @@ func (c *ACipherED25519) BytesToPublicKey(pub []byte) bool {
   return true
 }
 
-func (c *ACipherED25519) PublicKeyToBytes() []byte {
+func (c *ACipherED25519) PublicKeyToBytes() ([]byte, bool) {
   pubASN1, err := x509.MarshalPKIXPublicKey(c.pub)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: MarshalPKIXPublicKey (cipher=%s): %v", c.GetType(), err)
+    return nil, true
   }
 
   pubBytes := pem.EncodeToMemory(&pem.Block{
@@ -88,14 +82,13 @@ func (c *ACipherED25519) PublicKeyToBytes() []byte {
     Bytes: pubASN1,
   })
 
-  return pubBytes
+  return pubBytes, true
 }
 
 // PrivateKeyToBytes private key to bytes
 func (c *ACipherED25519) PrivateKeyToBytes(password string) []byte {
   b, err := x509.MarshalPKCS8PrivateKey(&c.pkey)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: PrivateKeyToBytes (cipher=%s): %v", c.GetType(), err)
     return nil
   }
   block := &pem.Block{

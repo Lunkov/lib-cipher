@@ -7,8 +7,6 @@ import (
   "crypto/x509"
   "encoding/pem"
   "crypto/sha512"
-  
-  "github.com/golang/glog"
 )
 
 type ACipherECDSA struct {
@@ -52,7 +50,6 @@ func (c *ACipherECDSA) GenerateKeyPair() bool {
   }
   priv, err := ecdsa.GenerateKey(params, rand.Reader)
   if err != nil {
-    glog.Errorf("ERR: GenerateKeyPair: %s: %v", c.GetType(), err)
     return false
   }
   c.Private = priv
@@ -65,14 +62,13 @@ func (c *ACipherECDSA) GenerateKeyPair() bool {
   return true
 }
 
-func (c *ACipherECDSA) PublicKeyToBytes() []byte {
+func (c *ACipherECDSA) PublicKeyToBytes() ([]byte, bool) {
   if c.Public == nil {
-    glog.Errorf("ERR: CRYPT: MarshalPKIXPublicKey (cipher=%s): Public Key is null", c.GetType())
-    return nil
+    return nil, false
   }
   pubASN1, err := x509.MarshalPKIXPublicKey(c.Public)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: MarshalPKIXPublicKey (cipher=%s): %v", c.GetType(), err)
+    return nil, false
   }
 
   pubBytes := pem.EncodeToMemory(&pem.Block{
@@ -80,14 +76,13 @@ func (c *ACipherECDSA) PublicKeyToBytes() []byte {
     Bytes: pubASN1,
   })
 
-  return pubBytes
+  return pubBytes, true
 }
 
 // BytesToPublicKey bytes to public key
 func (c *ACipherECDSA) BytesToPublicKey(pub []byte) bool {
   block, _ := pem.Decode(pub)
   if block == nil {
-    glog.Errorf("ERR: CRYPT: pem.Decode (cipher=%s)", c.GetType())
     return false
   }
   enc := x509.IsEncryptedPEMBlock(block)
@@ -96,18 +91,15 @@ func (c *ACipherECDSA) BytesToPublicKey(pub []byte) bool {
   if enc {
     b, err = x509.DecryptPEMBlock(block, nil)
     if err != nil {
-      glog.Errorf("ERR: CRYPT: DecryptPEMBlock (cipher=%s): %v", c.GetType(), err)
       return false
     }
   }
   ifc, err := x509.ParsePKIXPublicKey(b)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: ParsePKIXPublicKey (cipher=%s): %v", c.GetType(), err)
     return false
   }
   key, ok := ifc.(*ecdsa.PublicKey)
   if !ok {
-    glog.Errorf("ERR: CRYPT: ParsePKIXPublicKey (cipher=%s): %v", c.GetType(), err)
     return false
   }
   c.Private = &ecdsa.PrivateKey{}
@@ -122,7 +114,6 @@ func (c *ACipherECDSA) BytesToPublicKey(pub []byte) bool {
 func (c *ACipherECDSA) PrivateKeyToBytes(password string) []byte {
   b, err := x509.MarshalECPrivateKey(c.Private)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: PrivateKeyToBytes (cipher=%s): %v", c.GetType(), err)
     return nil
   }
   block := &pem.Block{
@@ -149,13 +140,11 @@ func (c *ACipherECDSA) BytesToPrivateKey(priv []byte, password string) bool {
   if enc {
     b, err = x509.DecryptPEMBlock(block, []byte(password))
     if err != nil {
-      glog.Errorf("ERR: CRYPT: Encrypt (cipher=%s): %v", c.GetType(), err)
       return false
     }
   }
   key, err := x509.ParseECPrivateKey(b)
   if err != nil {
-    glog.Errorf("ERR: CRYPT: ParsePKCS1PrivateKey (cipher=%s): %v", c.GetType(), err)
     return false
   }
   c.Private = key
