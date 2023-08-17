@@ -7,7 +7,6 @@ import (
   "crypto/sha256"
   "crypto/sha512"
   "crypto/cipher"
-  "github.com/golang/glog"
   "golang.org/x/crypto/scrypt"
 )
 
