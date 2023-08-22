@@ -1,6 +1,7 @@
 package cipher
 
 import (
+  "errors"
   "bytes"
   "encoding/gob"
   "strconv"
@@ -19,7 +20,7 @@ type ECDSAPublicKeyBuf struct {
   X, Y, Data []byte
 }
 
-func ECDSAGetParams(t string) (elliptic.Curve, bool) {
+func ECDSAGetParams(t string) (elliptic.Curve, error) {
   var params elliptic.Curve
   switch t {
     case "P-224":
@@ -38,57 +39,57 @@ func ECDSAGetParams(t string) (elliptic.Curve, bool) {
       params = elliptic.P521()
       break
     default:
-      return nil, false
+      return nil, errors.New("Wrong ECDSA: " + t)
   }
-  return params, true
+  return params, nil
 }
 
-func ECDSAPublicKeySerialize(public *ecdsa.PublicKey) ([]byte, bool) {
+func ECDSAPublicKeySerialize(public *ecdsa.PublicKey) ([]byte, error) {
   t := public.Params().Name
   if t == "" {
     t = "WP-" + strconv.Itoa(public.Params().BitSize)
   }
-  _, ok := ECDSAGetParams(t)
-  if !ok {
-    return nil, false
+  _, err := ECDSAGetParams(t)
+  if err != nil {
+    return nil, err 
   }
   ecdsabuf := ECDSAPublicKeyBuf{Type: t, X: public.X.Bytes(), Y: public.Y.Bytes()}
   var buff bytes.Buffer
   encoder := gob.NewEncoder(&buff)
   encoder.Encode(ecdsabuf)
-  return buff.Bytes(), true
+  return buff.Bytes(), nil
 }
 
-func ECDSAPublicKeyDeserialize(msg []byte) (*ecdsa.PublicKey, bool) {
+func ECDSAPublicKeyDeserialize(msg []byte) (*ecdsa.PublicKey, error) {
   var ecdsabuf ECDSAPublicKeyBuf
   buf := bytes.NewBuffer(msg)
   decoder := gob.NewDecoder(buf)
   err := decoder.Decode(&ecdsabuf)
   if err != nil {
-    return nil, false
+    return nil, err
   }
-  curve, ok := ECDSAGetParams(ecdsabuf.Type)
-  if !ok {
-    return nil, false
+  curve, errp := ECDSAGetParams(ecdsabuf.Type)
+  if errp != nil {
+    return nil, errp
   }
   x := big.Int{}
   x.SetBytes(ecdsabuf.X)
   y := big.Int{}
   y.SetBytes(ecdsabuf.Y)
-  return &ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}, true
+  return &ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}, nil
 }
 
-func ECDSADeserializeAndVerify(pk []byte, message []byte, signature []byte) bool {
-  public, ok := ECDSAPublicKeyDeserialize(pk)
-  if !ok {
-    return false
+func ECDSADeserializeAndVerify(pk []byte, message []byte, signature []byte) (bool, error) {
+  public, err := ECDSAPublicKeyDeserialize(pk)
+  if err != nil {
+    return false, err
   }
   hashed := sha512.Sum512(message)
-  return ecdsa.VerifyASN1(public, hashed[:], signature)
+  return ecdsa.VerifyASN1(public, hashed[:], signature), nil
 }
 
-func ECDSASign(pk *ecdsa.PrivateKey, message []byte) ([]byte, bool) {
+func ECDSASign(pk *ecdsa.PrivateKey, message []byte) ([]byte, error) {
   hashed := sha512.Sum512(message)
   signature, err := ecdsa.SignASN1(rand.Reader, pk, hashed[:])
-  return signature, err == nil 
+  return signature, err 
 }

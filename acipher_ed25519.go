@@ -1,6 +1,7 @@
 package cipher
 
 import (
+  "errors"
   "crypto/rand"
   "crypto/ed25519"
   "crypto/sha512"
@@ -29,25 +30,25 @@ func NewACipherED25519(t string) IACipher {
 
 func (c *ACipherED25519) GetType() string  { return c.Type }
 
-func (c *ACipherED25519) GetID() []byte {
+func (c *ACipherED25519) GetID() ([]byte, error) {
   sha_512 := sha512.New()
   sha_512.Write(c.pub)
-  return sha_512.Sum(nil)
+  return sha_512.Sum(nil), nil
 }
 
-func (c *ACipherED25519) GenerateKeyPair() bool {
+func (c *ACipherED25519) GenerateKeyPair() error {
   pub, priv, err := ed25519.GenerateKey(rand.Reader)
   if err != nil {
-    return false
+    return err
   }
   c.pub = pub
   c.pkey = priv
-  return true
+  return nil
 }
 
 
 // BytesToPublicKey bytes to public key
-func (c *ACipherED25519) BytesToPublicKey(pub []byte) bool {
+func (c *ACipherED25519) BytesToPublicKey(pub []byte) error {
   block, _ := pem.Decode(pub)
   enc := x509.IsEncryptedPEMBlock(block)
   b := block.Bytes
@@ -55,26 +56,26 @@ func (c *ACipherED25519) BytesToPublicKey(pub []byte) bool {
   if enc {
     b, err = x509.DecryptPEMBlock(block, nil)
     if err != nil {
-      return false
+      return err
     }
   }
   ifc, err := x509.ParsePKIXPublicKey(b)
   if err != nil {
-    return false
+    return err
   }
   key, ok := ifc.(*ed25519.PublicKey)
   if !ok {
-    return false
+    return errors.New("Convert ED25519 Error")
   }
   //c.pkey = &ed25519.PrivateKey{}
   c.pub = (*key)
-  return true
+  return nil
 }
 
-func (c *ACipherED25519) PublicKeyToBytes() ([]byte, bool) {
+func (c *ACipherED25519) PublicKeyToBytes() ([]byte, error) {
   pubASN1, err := x509.MarshalPKIXPublicKey(c.pub)
   if err != nil {
-    return nil, true
+    return nil, err
   }
 
   pubBytes := pem.EncodeToMemory(&pem.Block{
@@ -82,14 +83,14 @@ func (c *ACipherED25519) PublicKeyToBytes() ([]byte, bool) {
     Bytes: pubASN1,
   })
 
-  return pubBytes, true
+  return pubBytes, nil
 }
 
 // PrivateKeyToBytes private key to bytes
-func (c *ACipherED25519) PrivateKeyToBytes(password string) []byte {
+func (c *ACipherED25519) PrivateKeyToBytes(password string) ([]byte, error) {
   b, err := x509.MarshalPKCS8PrivateKey(&c.pkey)
   if err != nil {
-    return nil
+    return nil, err
   }
   block := &pem.Block{
       Type:  "ED25519 PRIVATE KEY",
@@ -100,23 +101,23 @@ func (c *ACipherED25519) PrivateKeyToBytes(password string) []byte {
     var err error
     block, err = x509.EncryptPEMBlock(rand.Reader, block.Type, block.Bytes, []byte(password), x509.PEMCipherAES256)
     if err != nil {
-      return nil
+      return nil, err
     }
   }
-  return pem.EncodeToMemory(block)
+  return pem.EncodeToMemory(block), nil
 }
 
-func (c *ACipherED25519) Sign(message []byte) ([]byte, bool) {
+func (c *ACipherED25519) Sign(message []byte) ([]byte, error) {
   signature := ed25519.Sign(c.pkey, message)
-  return signature, true 
+  return signature, nil 
 }
 
-func (c *ACipherED25519) Verify(message []byte, signature []byte) (bool) {
-  return ed25519.Verify(c.pub, message, signature)
+func (c *ACipherED25519) Verify(message []byte, signature []byte) (bool, error) {
+  return ed25519.Verify(c.pub, message, signature), nil
 }
 
 // EncryptWithPublicKey encrypts data with public key
-func (c *ACipherED25519) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
+func (c *ACipherED25519) EncryptWithPublicKey(msg []byte) ([]byte, error) {
   /*hash := sha512.New()
   ciphertext, err := rsa.EncryptOAEP(hash, rand.Reader,&c.pkey.PublicKey, msg, nil)
   if err != nil {
@@ -124,11 +125,11 @@ func (c *ACipherED25519) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
     return ciphertext, false
   }
   return ciphertext, true*/
-  return nil, false
+  return nil, errors.New("This function is not supported")
 }
 
 // DecryptWithPrivateKey decrypts data with private key
-func (c *ACipherED25519) DecryptWithPrivateKey(ciphertext []byte) ([]byte, bool) {
+func (c *ACipherED25519) DecryptWithPrivateKey(ciphertext []byte) ([]byte, error) {
   /*hash := sha512.New()
   plaintext, err := rsa.DecryptOAEP(hash, rand.Reader, c.pkey, ciphertext, nil)
   if err != nil {
@@ -136,13 +137,13 @@ func (c *ACipherED25519) DecryptWithPrivateKey(ciphertext []byte) ([]byte, bool)
     return plaintext, false
   }
   return plaintext, true*/
-  return nil, false
+  return nil, errors.New("This function is not supported")
 } 
 
-func (c *ACipherED25519) PublicKeySerialize() ([]byte, bool) {
-  return nil, false
+func (c *ACipherED25519) PublicKeySerialize() ([]byte, error) {
+  return nil, errors.New("This function is not supported")
 }
 
-func (c *ACipherED25519) PublicKeyDeserialize(msg []byte) (bool) {
-  return false
+func (c *ACipherED25519) PublicKeyDeserialize(msg []byte) (error) {
+  return errors.New("This function is not supported")
 }

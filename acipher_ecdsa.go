@@ -1,6 +1,7 @@
 package cipher
 
 import (
+  "errors"
   "crypto/rand"
   "crypto/ecdsa"
 	"crypto/elliptic"
@@ -33,24 +34,24 @@ func NewACipherECDSA(t string) IACipher {
 
 func (c *ACipherECDSA) GetType() string  { return c.Type }
 
-func (c *ACipherECDSA) GetID() []byte {
+func (c *ACipherECDSA) GetID() ([]byte, error) {
   if c.Public == nil {
-    return nil
+    return nil, errors.New("Public Key does not exists")
   }
   pubKey := elliptic.Marshal(c.Public, c.Public.X, c.Public.Y)
   sha_512 := sha512.New()
   sha_512.Write([]byte(pubKey))
-  return sha_512.Sum(nil)
+  return sha_512.Sum(nil), nil
 }
 
-func (c *ACipherECDSA) GenerateKeyPair() bool {
-  params, ok := ECDSAGetParams(c.GetType())
-  if !ok {
-    return false
+func (c *ACipherECDSA) GenerateKeyPair() error {
+  params, errp := ECDSAGetParams(c.GetType())
+  if errp != nil {
+    return errp
   }
   priv, err := ecdsa.GenerateKey(params, rand.Reader)
   if err != nil {
-    return false
+    return err
   }
   c.Private = priv
   if priv != nil {
@@ -59,16 +60,16 @@ func (c *ACipherECDSA) GenerateKeyPair() bool {
       c.Public = public
     }
   }
-  return true
+  return nil
 }
 
-func (c *ACipherECDSA) PublicKeyToBytes() ([]byte, bool) {
+func (c *ACipherECDSA) PublicKeyToBytes() ([]byte, error) {
   if c.Public == nil {
-    return nil, false
+    return nil, errors.New("Public Key does not exists")
   }
   pubASN1, err := x509.MarshalPKIXPublicKey(c.Public)
   if err != nil {
-    return nil, false
+    return nil, err
   }
 
   pubBytes := pem.EncodeToMemory(&pem.Block{
@@ -76,45 +77,45 @@ func (c *ACipherECDSA) PublicKeyToBytes() ([]byte, bool) {
     Bytes: pubASN1,
   })
 
-  return pubBytes, true
+  return pubBytes, nil
 }
 
 // BytesToPublicKey bytes to public key
-func (c *ACipherECDSA) BytesToPublicKey(pub []byte) bool {
-  block, _ := pem.Decode(pub)
-  if block == nil {
-    return false
+func (c *ACipherECDSA) BytesToPublicKey(pub []byte) error {
+  block, rest := pem.Decode(pub)
+  if rest != nil {
+    return errors.New("PEM Decode: " + string(rest))
   }
   enc := x509.IsEncryptedPEMBlock(block)
   b := block.Bytes
-  var err error
   if enc {
+    var err error
     b, err = x509.DecryptPEMBlock(block, nil)
     if err != nil {
-      return false
+      return err
     }
   }
   ifc, err := x509.ParsePKIXPublicKey(b)
   if err != nil {
-    return false
+    return err
   }
   key, ok := ifc.(*ecdsa.PublicKey)
   if !ok {
-    return false
+    return errors.New("Convert ECDSA Error")
   }
   c.Private = &ecdsa.PrivateKey{}
   if key != nil {
     c.Public = key
   }
-  return true
+  return nil
 }
 
 
 // PrivateKeyToBytes private key to bytes
-func (c *ACipherECDSA) PrivateKeyToBytes(password string) []byte {
+func (c *ACipherECDSA) PrivateKeyToBytes(password string) ([]byte, error) {
   b, err := x509.MarshalECPrivateKey(c.Private)
   if err != nil {
-    return nil
+    return nil, err
   }
   block := &pem.Block{
       Type:  "ECDSA PRIVATE KEY",
@@ -122,72 +123,75 @@ func (c *ACipherECDSA) PrivateKeyToBytes(password string) []byte {
     }
   // Encrypt the pem
   if password != "" {
-    var err error
     block, err = x509.EncryptPEMBlock(rand.Reader, block.Type, block.Bytes, []byte(password), x509.PEMCipherAES256)
     if err != nil {
-      return nil
+      return nil, err
     }
   }
-  return pem.EncodeToMemory(block)
+  return pem.EncodeToMemory(block), nil
 }
 
 // BytesToPrivateKey bytes to private key
-func (c *ACipherECDSA) BytesToPrivateKey(priv []byte, password string) bool {
-  block, _ := pem.Decode(priv)
+func (c *ACipherECDSA) BytesToPrivateKey(priv []byte, password string) error {
+  block, rest := pem.Decode(priv)
+  if rest != nil {
+    return errors.New("PEM Decode: " + string(rest))
+  }
   enc := x509.IsEncryptedPEMBlock(block)
   b := block.Bytes
-  var err error
   if enc {
+    var err error
     b, err = x509.DecryptPEMBlock(block, []byte(password))
     if err != nil {
-      return false
+      return err
     }
   }
   key, err := x509.ParseECPrivateKey(b)
   if err != nil {
-    return false
+    return err
   }
   c.Private = key
-  return true
+  return nil
 }
 
-func (c *ACipherECDSA) Sign(message []byte) ([]byte, bool) {
+func (c *ACipherECDSA) Sign(message []byte) ([]byte, error) {
   if c.Private == nil {
-    return nil, false
+    return nil, errors.New("Private Key does not exists")
   }
   hashed := sha512.Sum512(message)
   signature, err := ecdsa.SignASN1(rand.Reader, c.Private, hashed[:])
-  return signature, err == nil 
+  return signature, err 
 }
 
-func (c *ACipherECDSA) Verify(message []byte, signature []byte) (bool) {
+func (c *ACipherECDSA) Verify(message []byte, signature []byte) (bool, error) {
   if c.Public == nil {
-    return false
+    return false, errors.New("Public Key does not exists")
   }
   hashed := sha512.Sum512(message)
-  return ecdsa.VerifyASN1(c.Public, hashed[:], signature)
+  return ecdsa.VerifyASN1(c.Public, hashed[:], signature), nil
 }
 
 
 // EncryptWithPublicKey encrypts data with public key
-func (c *ACipherECDSA) EncryptWithPublicKey(msg []byte) ([]byte, bool) {
-  return nil, false
+func (c *ACipherECDSA) EncryptWithPublicKey(msg []byte) ([]byte, error) {
+  return nil, errors.New("This function is not supported")
 }
 
 // DecryptWithPrivateKey decrypts data with private key
-func (c *ACipherECDSA) DecryptWithPrivateKey(ciphertext []byte) ([]byte, bool) {
-  return nil, false
+func (c *ACipherECDSA) DecryptWithPrivateKey(ciphertext []byte) ([]byte, error) {
+  return nil, errors.New("This function is not supported")
 } 
 
-func (c *ACipherECDSA) PublicKeySerialize() ([]byte, bool) {
+func (c *ACipherECDSA) PublicKeySerialize() ([]byte, error) {
   return ECDSAPublicKeySerialize(c.Public)
 }
 
-func (c *ACipherECDSA) PublicKeyDeserialize(msg []byte) (bool) {
-  pk, ok := ECDSAPublicKeyDeserialize(msg)
-  if ok {
-    c.Public = pk
+func (c *ACipherECDSA) PublicKeyDeserialize(msg []byte) (error) {
+  pk, err := ECDSAPublicKeyDeserialize(msg)
+  if err != nil {
+    return err
   }
-  return ok
+  c.Public = pk
+  return nil
 }
 

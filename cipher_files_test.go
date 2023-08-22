@@ -7,11 +7,11 @@ import (
 
 func TestCryptFile(t *testing.T) {
   fl := NewCFile()
-  assert.True(t, fl.SaveFilePwd("./test.file", "1234567890", []byte("0987654321")))
+  assert.Nil(t, fl.SaveFilePwd("./test.file", "1234567890", []byte("0987654321")))
   
   buf, ok := fl.LoadFilePwd("./test.file", "1234567890")
   
-  assert.True(t, ok)
+  assert.Nil(t, ok)
 
   assert.Equal(t, "0987654321", string(buf))
 }
@@ -19,11 +19,11 @@ func TestCryptFile(t *testing.T) {
 func TestCryptFileBuf(t *testing.T) {
   fl := NewCFile()
   bufe, oke := fl.EncryptBufPwd([]byte("1234567890"), "0987654321")
-  assert.True(t, oke)
+  assert.Nil(t, oke)
   
   bufd, okd := fl.DecryptBufPwd(bufe, "1234567890")
   
-  assert.False(t, okd)
+  assert.NotNil(t, okd)
 
   bufd, okd = fl.DecryptBufPwd(bufe, "0987654321")
 
@@ -32,15 +32,17 @@ func TestCryptFileBuf(t *testing.T) {
 
 func TestCryptFileBuffer(t *testing.T) {
   fl := NewCFile()
-  bufe := fl.EncryptBufferPwd("0987654321", []byte("1234567890"))
+  bufe, err := fl.EncryptBufferPwd("0987654321", []byte("1234567890"))
+  assert.Nil(t, err)
   
   bufd, okd := fl.DecryptBufferPwd("1234567890", &bufe)
   
-  assert.False(t, okd)
+  assert.NotNil(t, okd)
 
-  bufe = fl.EncryptBufferPwd("0987654321", []byte("1234567890"))
+  bufe, err = fl.EncryptBufferPwd("0987654321", []byte("1234567890"))
+  assert.Nil(t, err)
 
   bufd, okd = fl.DecryptBufferPwd("0987654321", &bufe)
-  assert.True(t, okd)
+  assert.Nil(t, okd)
   assert.Equal(t, "1234567890", string(bufd))
 }

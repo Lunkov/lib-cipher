@@ -1,6 +1,7 @@
 package cipher
 
 import (
+  "errors"
   "io"
   "crypto/rand"
   "crypto/aes"
@@ -33,20 +34,20 @@ func NewSCipher() *SCipher {
   return &SCipher{}
 }
 
-func (c *SCipher) AESCreateKey() ([]byte, bool) {
+func (c *SCipher) AESCreateKey() ([]byte, error) {
   key := make([]byte, 64)
   _, err := rand.Read(key)
   if err != nil {
-    return nil, false
+    return nil, err
   }
-  return key, true
+  return key, nil
 }
 
 // encrypt string to base64 crypto using AES
-func (c *SCipher) AESEncrypt(key []byte, plaintext []byte) ([]byte, bool) {
+func (c *SCipher) AESEncrypt(key []byte, plaintext []byte) ([]byte, error) {
   block, err := aes.NewCipher(key)
   if err != nil {
-    return plaintext, false
+    return plaintext, err
   }
 
   // The IV needs to be unique, but not secure. Therefore it's common to
@@ -54,26 +55,26 @@ func (c *SCipher) AESEncrypt(key []byte, plaintext []byte) ([]byte, bool) {
   ciphertext := make([]byte, aes.BlockSize+len(plaintext))
   iv := ciphertext[:aes.BlockSize]
   if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-    return plaintext, false
+    return plaintext, err
   }
 
   stream := cipher.NewCFBEncrypter(block, iv)
   stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
 
-  return ciphertext, true
+  return ciphertext, nil
 }
 
 // decrypt from base64 to decrypted string
-func (c *SCipher) AESDecrypt(key []byte, ciphertext []byte) ([]byte, bool) {
+func (c *SCipher) AESDecrypt(key []byte, ciphertext []byte) ([]byte, error) {
   block, err := aes.NewCipher(key)
   if err != nil {
-    return ciphertext, false
+    return ciphertext, nil
   }
 
   // The IV needs to be unique, but not secure. Therefore it's common to
   // include it at the beginning of the ciphertext.
   if len(ciphertext) < aes.BlockSize {
-    return ciphertext, false
+    return ciphertext, errors.New("len(ciphertext) < aes.BlockSize")
   }
   iv := ciphertext[:aes.BlockSize]
   ciphertext = ciphertext[aes.BlockSize:]
@@ -81,7 +82,7 @@ func (c *SCipher) AESDecrypt(key []byte, ciphertext []byte) ([]byte, bool) {
 
   // XORKeyStream can work in-place if the two arguments are the same.
   stream.XORKeyStream(ciphertext, ciphertext)
-  return ciphertext, true
+  return ciphertext, nil
 }
 
 func (c *SCipher) SHA512(key []byte) ([]byte) {

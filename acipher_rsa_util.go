@@ -1,6 +1,7 @@
 package cipher
 
 import (
+  "errors"
   "crypto/rand"
   "crypto/rsa"
   
@@ -8,9 +9,9 @@ import (
 )
 
 // EncryptWithPublicKey encrypts data with public key
-func RSAEncryptWithPublicKey(pk *rsa.PublicKey, msg []byte) ([]byte, bool) {
+func RSAEncryptWithPublicKey(pk *rsa.PublicKey, msg []byte) ([]byte, error) {
   if pk == nil {
-    return nil, false
+    return nil, errors.New("Public Key does not exists")
   }
   hash := sha512.New()
   msgLen := len(msg)
@@ -25,19 +26,19 @@ func RSAEncryptWithPublicKey(pk *rsa.PublicKey, msg []byte) ([]byte, bool) {
 
     encryptedBlockBytes, err := rsa.EncryptOAEP(hash, rand.Reader, pk, msg[start:finish], nil)
     if err != nil {
-      return nil, false
+      return nil, err
     }
 
     encryptedBytes = append(encryptedBytes, encryptedBlockBytes...)
   }
 
-  return encryptedBytes, true
+  return encryptedBytes, nil
 }
 
 // DecryptWithPrivateKey decrypts data with private key
-func RSADecryptWithPrivateKey(privkey *rsa.PrivateKey, msg []byte) ([]byte, bool) {
+func RSADecryptWithPrivateKey(privkey *rsa.PrivateKey, msg []byte) ([]byte, error) {
   if privkey == nil {
-    return nil, false
+    return nil, errors.New("Private Key does not exists")
   }
   hash := sha512.New()
 
@@ -53,12 +54,12 @@ func RSADecryptWithPrivateKey(privkey *rsa.PrivateKey, msg []byte) ([]byte, bool
 
     decryptedBlockBytes, err := rsa.DecryptOAEP(hash, rand.Reader, privkey, msg[start:finish], nil)
     if err != nil {
-      return nil, false
+      return nil, err
     }
 
     decryptedBytes = append(decryptedBytes, decryptedBlockBytes...)
   }
 
-  return decryptedBytes, true
+  return decryptedBytes, nil
 }
 

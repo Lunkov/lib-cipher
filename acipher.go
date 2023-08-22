@@ -9,36 +9,36 @@ import (
 type IACipher interface {
   GetType() string
   
-  GetID() []byte
+  GetID() ([]byte, error)
   
-  GenerateKeyPair() bool
+  GenerateKeyPair() error
   
-  PublicKeyToBytes() ([]byte, bool)
-  BytesToPublicKey(pub []byte) bool
-  LoadPublicKey(filename string) bool
-  SavePublicKey(filename string) bool
+  PublicKeyToBytes() ([]byte, error)
+  BytesToPublicKey(pub []byte) error
+  LoadPublicKey(filename string) error
+  SavePublicKey(filename string) error
   
-  PrivateKeyToBytes(password string) []byte
-  BytesToPrivateKey(priv []byte, password string) bool
-  LoadPrivateKey(password string, filename string) bool
-  SavePrivateKey(password string, filename string) bool
+  PrivateKeyToBytes(password string) ([]byte, error)
+  BytesToPrivateKey(priv []byte, password string) error
+  LoadPrivateKey(password string, filename string) error
+  SavePrivateKey(password string, filename string) error
   
-  PublicKeySerialize() ([]byte, bool)
-  PublicKeyDeserialize(msg []byte) (bool)
+  PublicKeySerialize() ([]byte, error)
+  PublicKeyDeserialize(msg []byte) (error)
     
-  Sign(message []byte) ([]byte, bool)
-  Verify(message []byte, signature []byte) (bool)
+  Sign(message []byte) ([]byte, error)
+  Verify(message []byte, signature []byte) (bool, error)
   
-  EncryptWithPublicKey(msg []byte) ([]byte, bool)
-  DecryptWithPrivateKey(ciphertext []byte) ([]byte, bool)
+  EncryptWithPublicKey(msg []byte) ([]byte, error)
+  DecryptWithPrivateKey(ciphertext []byte) ([]byte, error)
 }
 
 type ACipher struct {  
-  privateKeyToBytes func(password string) []byte
-  publicKeyToBytes func() ([]byte, bool)
+  privateKeyToBytes func(password string) ([]byte, error)
+  publicKeyToBytes func() ([]byte, error)
   
-  bytesToPrivateKey func(data []byte, password string) bool
-  bytesToPublicKey  func(data []byte) bool
+  bytesToPrivateKey func(data []byte, password string) error
+  bytesToPublicKey  func(data []byte) error
 }
 
 func NewACipher(t string) IACipher {
@@ -61,47 +61,51 @@ func NewACipher(t string) IACipher {
   return nil
 }
 
-func (c *ACipher) LoadPublicKey(filename string) bool {
+func (c *ACipher) LoadPublicKey(filename string) error {
   data, err := os.ReadFile(filename + ".pub")
   if err != nil {
-    return false
+    return err
   }
   return c.bytesToPublicKey(data)
 }
 
-func (c *ACipher) SavePublicKey(filename string) bool {
+func (c *ACipher) SavePublicKey(filename string) error {
   pubfile := filename + ".pub"
-  buf, ok := c.publicKeyToBytes()
-  if !ok {
-    return false
-  }
-  err := os.WriteFile(pubfile, buf, 0644)
+  buf, err := c.publicKeyToBytes()
   if err != nil {
-    return false
+    return err
   }
-  return true
+  err = os.WriteFile(pubfile, buf, 0644)
+  if err != nil {
+    return err
+  }
+  return nil
 }
 
-func (c *ACipher) PublicKeyToBytes() ([]byte, bool) { return nil, false }
-func (c *ACipher) BytesToPublicKey(pub []byte) bool { return false }
+func (c *ACipher) PublicKeyToBytes() ([]byte, error) { return nil, nil }
+func (c *ACipher) BytesToPublicKey(pub []byte) error { return nil }
 
 func (c *ACipher) PrivateKeyToBytes(password string) []byte { return nil }
-func (c *ACipher) BytesToPrivateKey(priv []byte, password string) bool { return false }
+func (c *ACipher) BytesToPrivateKey(priv []byte, password string) error { return nil }
 
-func (c *ACipher) LoadPrivateKey(password string, filename string) bool {
+func (c *ACipher) LoadPrivateKey(password string, filename string) error {
   data, err := os.ReadFile(filename + ".sec")
   if err != nil {
-    return false
+    return err
   }
   return c.bytesToPrivateKey(data, password)
 }
 
-func (c *ACipher) SavePrivateKey(password string, filename string) bool {
+func (c *ACipher) SavePrivateKey(password string, filename string) error {
   pubfile := filename + ".sec"
-  err := os.WriteFile(pubfile, c.privateKeyToBytes(password), 0644)
+  key, err := c.privateKeyToBytes(password)
   if err != nil {
-    return false
+    return err
   }
-  return true
+  err = os.WriteFile(pubfile, key, 0644)
+  if err != nil {
+    return err
+  }
+  return nil
 }
 
